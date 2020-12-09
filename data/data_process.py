@@ -7,10 +7,10 @@ import os.path as osp
 import cv2
 import argparse
 parser = argparse.ArgumentParser(description='Data preparation')
-parser.add_argument('--data_root',  type=str) # contains refclef, refcoco, refcoco+, refcocog and images
-parser.add_argument('--output_dir',  type=str)
+parser.add_argument('--data_root',  type=str, default='./data') # contains refclef, refcoco, refcoco+, refcocog and images
+parser.add_argument('--output_dir',  type=str, default='./data')
 parser.add_argument('--dataset', type=str, choices=['refcoco', 'refcoco+','refcocog','refclef'],default='refcoco')
-parser.add_argument('--split',  type=str,default='umd')
+parser.add_argument('--split',  type=str,default='unc')
 parser.add_argument('--generate_mask',  action='store_true')
 args = parser.parse_args()
 # data_root # contains refclef, refcoco, refcoco+, refcocog and images

@@ -516,7 +516,10 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
         seg_loss = K.sum(seg_loss) / mf
         co_enegy_loss=cem_loss(co_enegy) / mf
 
-        loss += xy_loss+ wh_loss+ confidence_loss+seg_loss*seg_loss_weight+co_enegy_loss
+        # remove RES and CEM loss
+        seg_loss_weight = 0.
+        co_weight = 0.
+        loss += xy_loss+ wh_loss+ confidence_loss+seg_loss*seg_loss_weight+co_enegy_loss*co_weight
         if print_loss:
             loss = tf.Print(loss, ['\n''co_peak_loss: ',co_enegy_loss,'co_peak_energe: ', K.sum(co_enegy)/mf], message='loss: ')
     return  K.expand_dims(loss, axis=0)
