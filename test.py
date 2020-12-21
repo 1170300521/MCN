@@ -40,7 +40,7 @@ class Evaluator(object):
         num_anchors = len(self.anchors)
         det_gt = [Input(shape=(h // {0: 32, 1: 16, 2: 8}[l], w // {0: 32, 1: 16, 2: 8}[l],  3, 5)) for l
                   in range(1)]
-        seg_gt=Input(shape=(h//self.seg_out_stride,w//self.seg_out_stride,1))
+        # seg_gt=Input(shape=(h//self.seg_out_stride,w//self.seg_out_stride,1))
 
         model_body = yolo_body(image_input, q_input, num_anchors,config)  ######    place
 
@@ -57,31 +57,31 @@ class Evaluator(object):
 
         model_loss = Lambda(yolo_loss, output_shape=(1,), name='yolo_loss',
                             arguments={'anchors': self.anchors,  'ignore_thresh': 0.5,'seg_loss_weight':config['seg_loss_weight']})(
-            [*model_body.output, *det_gt,seg_gt])
-        model = Model([model_body.input[0], model_body.input[1], *det_gt,seg_gt], model_loss)
+            [model_body.output, *det_gt])
+        model = Model([model_body.input[0], model_body.input[1], *det_gt], model_loss)
         return model, model_body
 
     def eval(self):
         results=dict()
         self.evaluator.on_epoch_end(-1,results)
         det_acc=results['det_acc']
-        seg_iou=results['seg_iou']
-        seg_prec=results['seg_prec']
-        ie_score=results['ie_score']
+#        seg_iou=results['seg_iou']
+#        seg_prec=results['seg_prec']
+#        ie_score=results['ie_score']
         #dump the  result to .txt
         if os.path.exists('result/'):
             shutil.rmtree('result/')
         os.mkdir('result/')
         with open('result/result.txt', 'w') as f_w:
-            f_w.write('segmentation result:' + '\n')
-            f_w.write('iou: %.4f\n'%(seg_iou))
-            for item in seg_prec:
-                f_w.write('iou@%.2f: %.4f'%(item,seg_prec[item] )+'\n')
-            f_w.write('\n')
+#            f_w.write('segmentation result:' + '\n')
+#            f_w.write('iou: %.4f\n'%(seg_iou))
+#            for item in seg_prec:
+#                f_w.write('iou@%.2f: %.4f'%(item,seg_prec[item] )+'\n')
+#            f_w.write('\n')
             f_w.write('detection result:' + '\n')
             f_w.write('Acc@.5: %.4f\n' % (det_acc))
             f_w.write('\n')
-            f_w.write('IE score : %.4f' % (ie_score) + '% \n')
+#            f_w.write('IE score : %.4f' % (ie_score) + '% \n')
 
     @staticmethod
     def get_anchors(anchors_path):

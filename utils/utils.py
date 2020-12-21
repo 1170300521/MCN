@@ -89,7 +89,7 @@ def qlist_to_vec(max_length, q_list,embed):
     return np.array(glove_matrix)
 def get_random_data(annotation_line, input_shape,embed,config, train_mode=True, max_boxes=1):
     '''random preprocessing for real-time data augmentation'''
-    SEG_DIR=config['seg_gt_path']
+#    SEG_DIR=config['seg_gt_path']
     line = annotation_line.split()
     h, w = input_shape
     stop=len(line)
@@ -100,11 +100,11 @@ def get_random_data(annotation_line, input_shape,embed,config, train_mode=True, 
     # print(line[1:stop])
     box_ = np.array([np.array(list(map(int,box.split(',')))) for box in line[1:stop]])
     box=np.zeros([1,5])
-    seg_id=box_[0][-1]
+#    seg_id=box_[0][-1]
     box[0]=box_[0][:-1]
-    seg_map=np.load(os.path.join(SEG_DIR,str(seg_id)+'.npy'))
-    seg_map_ori=np.array(seg_map).astype(np.float32)
-    seg_map=Image.fromarray(seg_map_ori)
+#    seg_map=np.load(os.path.join(SEG_DIR,str(seg_id)+'.npy'))
+#    seg_map_ori=np.array(seg_map).astype(np.float32)
+#    seg_map=Image.fromarray(seg_map_ori)
     # print(np.shape(box))
     # print(box)
     #####################################
@@ -143,13 +143,13 @@ def get_random_data(annotation_line, input_shape,embed,config, train_mode=True, 
     new_image.paste(image, (dx, dy))
     image_data = np.array(new_image) / 255.
 
-    seg_map = seg_map.resize((nw, nh))
-    new_map = Image.new('L', (w, h), (0))
-    new_map.paste(seg_map, (dx, dy))
-    seg_map_data = np.array(new_map)
-    seg_map_data = cv2.resize(seg_map_data, (
-    seg_map_data.shape[0] // config['seg_out_stride'], seg_map_data.shape[0] // config['seg_out_stride']),interpolation=cv2.INTER_NEAREST)
-    seg_map_data = np.reshape(seg_map_data, [np.shape(seg_map_data)[0], np.shape(seg_map_data)[1], 1])
+#    seg_map = seg_map.resize((nw, nh))
+#    new_map = Image.new('L', (w, h), (0))
+#    new_map.paste(seg_map, (dx, dy))
+#    seg_map_data = np.array(new_map)
+#    seg_map_data = cv2.resize(seg_map_data, (
+#    seg_map_data.shape[0] // config['seg_out_stride'], seg_map_data.shape[0] // config['seg_out_stride']),interpolation=cv2.INTER_NEAREST)
+#    seg_map_data = np.reshape(seg_map_data, [np.shape(seg_map_data)[0], np.shape(seg_map_data)[1], 1])
         # print(new_image.size)
 
     # correct boxes
@@ -163,8 +163,8 @@ def get_random_data(annotation_line, input_shape,embed,config, train_mode=True, 
 
     if not train_mode:
         word_vec=[qlist_to_vec(config['word_len'], sent,embed) for sent in sentences]
-        return image_data, box_data,word_vec,ori_image,sentences,np.expand_dims(seg_map_ori ,-1)
-    return image_data, box_data,word_vec,seg_map_data
+        return image_data, box_data,word_vec,ori_image,sentences
+    return image_data, box_data,word_vec
 
 
 def lr_step_decay(lr_start=0.001, steps=[30, 40]):

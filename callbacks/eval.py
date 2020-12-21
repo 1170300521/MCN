@@ -47,7 +47,7 @@ class Evaluate(keras.callbacks.Callback):
         self.use_nls=config['use_nls']
         # mAP setting
         self.det_acc_thresh = config['det_acc_thresh']
-        self.seg_min_overlap=config['segment_thresh']
+#        self.seg_min_overlap=config['segment_thresh']
         if self.tensorboard is not  None:
             self.log_images=config['log_images']
         else:
@@ -71,7 +71,7 @@ class Evaluate(keras.callbacks.Callback):
             logs={}
 
         # run evaluation
-        self.det_acc,self.seg_iou,self.seg_prec,self.ie_score = self.evaluate(is_save_images=self.log_images)
+        self.det_acc = self.evaluate(is_save_images=self.log_images)
 
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
@@ -80,30 +80,31 @@ class Evaluate(keras.callbacks.Callback):
             summary_value = summary.value.add()
             summary_value.simple_value = self.det_acc
             summary_value.tag = "det_acc"
-            summary_value = summary.value.add()
-            summary_value.simple_value = self.seg_iou
-            summary_value.tag = "seg_iou"
-            summary_value = summary.value.add()
-            summary_value.simple_value = self.ie_score
-            summary_value.tag = "ie_score"
-            for item in self.seg_prec:
-                summary_value = summary.value.add()
-                summary_value.simple_value = self.seg_prec[item]
-                summary_value.tag = "map@%.2f"% item
+#            summary_value = summary.value.add()
+#            summary_value.simple_value = self.seg_iou
+#            summary_value.tag = "seg_iou"
+#            summary_value = summary.value.add()
+#            summary_value.simple_value = self.ie_score
+#            summary_value.tag = "ie_score"
+#            for item in self.seg_prec:
+#                summary_value = summary.value.add()
+#                summary_value.simple_value = self.seg_prec[item]
+#                summary_value.tag = "map@%.2f"% item
             self.tensorboard.writer.add_summary(summary, epoch)
 
         logs['det_acc'] = self.det_acc
-        logs['seg_iou'] = self.seg_iou
-        logs['ie_score']=self.ie_score
-        logs['seg_prec']=self.seg_prec
+#        logs['seg_iou'] = self.seg_iou
+#        logs['ie_score']=self.ie_score
+#        logs['seg_prec']=self.seg_prec
 
         if self.verbose == 1:
             print('det_acc: {:.4f}'.format(self.det_acc))
-            print('seg_iou: {:.4f}'.format(self.seg_iou))
-            print('ie_score: {:.4f}'.format(self.ie_score))
+#            print('seg_iou: {:.4f}'.format(self.seg_iou))
+#            print('ie_score: {:.4f}'.format(self.ie_score))
 
     def evaluate(self, tag='image', is_save_images=False):
-        self.boxes, self.scores, self.eval_inputs = yolo_eval_v2(self.model.output_shape[0],self.anchors, self.input_image_shape,
+        # print(self.model.output_shape)
+        self.boxes, self.scores, self.eval_inputs = yolo_eval_v2(self.model.output_shape,self.anchors, self.input_image_shape,
                                                                                score_threshold=0., iou_threshold=0.)
         # Add the class predict temp dict
         # pred_tmp = []
@@ -126,10 +127,10 @@ class Evaluate(keras.callbacks.Callback):
             word_vecs = []
             sentences = []
             gt_boxes = []
-            gt_segs = []
+#            gt_segs = []
 
             for data in batch_data:
-                image_data, box, word_vec, image, sentence, seg_map = get_random_data(data, self.input_shape,
+                image_data, box, word_vec, image, sentence = get_random_data(data, self.input_shape,
                                                                                       self.word_embed, self.config,
                                                                                       train_mode=False)  # box is [1,5]
                 sentences.extend(sentence)
@@ -141,13 +142,13 @@ class Evaluate(keras.callbacks.Callback):
                     images.append(image_data)
                     images_org.append(image)
                     files_id.append(id)
-                    gt_segs.append(seg_map)
+ #                   gt_segs.append(seg_map)
                     id += 1
 
             images = np.array(images)
             word_vecs = np.array(word_vecs)
-            out_bboxes_1, pred_segs,_ = self.model.predict_on_batch([images, word_vecs])
-            pred_segs = self.sigmoid_(pred_segs)  # logit to sigmoid
+            out_bboxes_1 = self.model.predict_on_batch([images, word_vecs])
+#            pred_segs = self.sigmoid_(pred_segs)  # logit to sigmoid
             for i, out in enumerate(out_bboxes_1):
                 # Predict
                 out_boxes, out_scores = self.sess.run(  # out_boxes is [1,4]  out_scores is [1,1]
@@ -158,33 +159,33 @@ class Evaluate(keras.callbacks.Callback):
                         self.input_image_shape: np.array(self.input_shape),
                         K.learning_phase(): 0
                     })
-
-                ih = gt_segs[i].shape[0]
-                iw = gt_segs[i].shape[1]
-                w, h = self.input_shape
-                scale = min(w / iw, h / ih)
-                nw = int(iw * scale)
-                nh = int(ih * scale)
-                dx = (w - nw) // 2
-                dy = (h - nh) // 2
+#
+#                ih = gt_segs[i].shape[0]
+#                iw = gt_segs[i].shape[1]
+#                w, h = self.input_shape
+#                scale = min(w / iw, h / ih)
+#                nw = int(iw * scale)
+#                nh = int(ih * scale)
+#                dx = (w - nw) // 2
+#                dy = (h - nh) // 2
 
                 # up sample
-                pred_seg = cv2.resize(pred_segs[i], self.input_shape)
-                #nls
-                if self.use_nls:
-                    pred_seg = self.nls(pred_seg, self.box_value_fix(out_boxes[0],self.input_shape), out_scores[0])
-                #scale to the size of ground-truth
-                pred_seg = pred_seg[dy:nh + dy, dx:nw + dx, ...]
-                pred_seg = cv2.resize(pred_seg, (gt_segs[i].shape[1], gt_segs[i].shape[0]))
-                pred_seg = np.reshape(pred_seg, [pred_seg.shape[0], pred_seg.shape[1], 1])
-                # segmentation eval
-                seg_iou, seg_prec = self.cal_seg_iou(gt_segs[i], pred_seg, self.seg_min_overlap)
-                seg_iou_all += seg_iou
-                for item in seg_prec:
-                    if seg_prec_all.get(item):
-                        seg_prec_all[item] += seg_prec[item]
-                    else:
-                        seg_prec_all[item] = seg_prec[item]
+#                pred_seg = cv2.resize(pred_segs[i], self.input_shape)
+#                #nls
+#                if self.use_nls:
+#                    pred_seg = self.nls(pred_seg, self.box_value_fix(out_boxes[0],self.input_shape), out_scores[0])
+#                #scale to the size of ground-truth
+#                pred_seg = pred_seg[dy:nh + dy, dx:nw + dx, ...]
+#                pred_seg = cv2.resize(pred_seg, (gt_segs[i].shape[1], gt_segs[i].shape[0]))
+#                pred_seg = np.reshape(pred_seg, [pred_seg.shape[0], pred_seg.shape[1], 1])
+#                # segmentation eval
+#                seg_iou, seg_prec = self.cal_seg_iou(gt_segs[i], pred_seg, self.seg_min_overlap)
+#                seg_iou_all += seg_iou
+#                for item in seg_prec:
+#                    if seg_prec_all.get(item):
+#                        seg_prec_all[item] += seg_prec[item]
+#                    else:
+#                        seg_prec_all[item] = seg_prec[item]
                 # detection eval
                 pred_box = self.box_value_fix(out_boxes[0],self.input_shape)
                 score = out_scores[0]
@@ -192,14 +193,14 @@ class Evaluate(keras.callbacks.Callback):
                 detect_prec_all += detect_prec
 
                 # caulate IE metric
-                if detect_prec - seg_prec[0.5] != 0.:
-                    if detect_prec > seg_prec[0.5]:
-                        td_fs_count += 1.
-                    else:
-                        fd_ts_count += 1.
-                elif detect_prec + seg_prec[0.5] == 0.:
-                    fd_fs_count += 1.
-
+#                if detect_prec - seg_prec[0.5] != 0.:
+#                    if detect_prec > seg_prec[0.5]:
+#                        td_fs_count += 1.
+#                    else:
+#                        fd_ts_count += 1.
+#                elif detect_prec + seg_prec[0.5] == 0.:
+#                    fd_fs_count += 1.
+#
                 #visualization
                 if is_save_images and (files_id[i] in self.eval_save_images_id):
                     left, top, right, bottom = pred_box
@@ -207,10 +208,10 @@ class Evaluate(keras.callbacks.Callback):
                     gt_left, gt_top, gt_right, gt_bottom = (gt_boxes[i]).astype('int32')
                     image = np.array(images[i] * 255.).astype(np.uint8)
                     # segement image for saving
-                    seg_image = np.array(
-                        cv2.resize(np.array(pred_segs[i] > self.seg_min_overlap).astype(np.float32),
-                                   self.input_shape)).astype(
-                        np.uint8) * 255
+#                    seg_image = np.array(
+#                        cv2.resize(np.array(pred_segs[i] > self.seg_min_overlap).astype(np.float32),
+#                                   self.input_shape)).astype(
+#                        np.uint8) * 255
                     label = '{:%.2f}' % score
                     color = self.colors[0]
                     cv2.rectangle(image, (left, top), (right, bottom), color, 2)
@@ -235,15 +236,15 @@ class Evaluate(keras.callbacks.Callback):
                                 .9, self.colors[2], 2)
                     cv2.imwrite('./images/'+str(files_id[i])+'.jpg',image)
                     log_images(self.tensorboard, tag + '/' + str(files_id[i]), [image], 0)
-                    log_images(self.tensorboard, tag + '/' + str(files_id[i]) + '_seg', [seg_image], 0)
+#                    log_images(self.tensorboard, tag + '/' + str(files_id[i]) + '_seg', [seg_image], 0)
 
 
-        miou_seg = seg_iou_all / id
+        # miou_seg = seg_iou_all / id
         miou_detect = detect_prec_all / id
-        ie_score=(td_fs_count+fd_ts_count) / id
-        for item in seg_prec_all:
-            seg_prec_all[item] /= id
-        return miou_detect, miou_seg,seg_prec_all,ie_score
+        # ie_score=(td_fs_count+fd_ts_count) / id
+#        for item in seg_prec_all:
+#            seg_prec_all[item] /= id
+        return miou_detect
 
     def cal_detect_iou(self,box1,box2,thresh=0.5):
         smooth=1e-7

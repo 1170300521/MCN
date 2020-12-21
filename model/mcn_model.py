@@ -80,8 +80,8 @@ def segmentation_branch(F_m,visual_feats,f_q):
     #garan unit
     Fm_down, Att_seg = global_attentive_reason_unit(Fm_down, f_q)
     #segmentation
-    E=aspp_decoder(Fm_down)
-    return [Fm_mid,Fm_down],E,Att_seg
+    # E=aspp_decoder(Fm_down)
+    return [Fm_mid,Fm_down], Att_seg
 
 def detection_branch(Fm,Ftd,fq,out_filters):
     #bottom-up branch
@@ -96,6 +96,7 @@ def detection_branch(Fm,Ftd,fq,out_filters):
     #detection
     E = DarknetConv2D(out_filters, (1, 1))(Fm_top)
     return E,Att_det
+
 def co_enegy_func(F_as,F_ac):
     #co-energy maxmization
     F_as_shape=K.int_shape(F_as)
@@ -133,12 +134,13 @@ def make_multitask_braches(Fv,fq, out_filters,config):
     #simple fusion
     Fm = simple_fusion(Fv[0],fq,config['jemb_dim'])
     #segementation
-    Ftd,E,F_as=segmentation_branch(Fm,Fv,fq)
+    Ftd, F_as=segmentation_branch(Fm,Fv,fq)
     #detection
-    y,F_ac=  detection_branch(Fm,Ftd,fq,out_filters)
+    y, F_ac=  detection_branch(Fm,Ftd,fq,out_filters)
     #co_enegy
-    co_enegy= co_enegy_func(F_as,F_ac)
-    return y,E,co_enegy
+    # co_enegy= co_enegy_func(F_as,F_ac)
+    # return y,E,co_enegy
+    return y
 
 
 def yolo_body(inputs,q_input, num_anchors,config):
@@ -153,6 +155,7 @@ def yolo_body(inputs,q_input, num_anchors,config):
     assert config['backbone'] in ["darknet","vgg"]
     if config['backbone'] =="darknet":
         darknet = Model(inputs, darknet_body(inputs))
+        print(darknet.output_shape, darknet.layers[152].output_shape, darknet.layers[92].output_shape)
         Fv = [darknet.output, darknet.layers[152].output, darknet.layers[92].output]
     else:
         Fv = vgg16(inputs)
@@ -162,9 +165,11 @@ def yolo_body(inputs,q_input, num_anchors,config):
     else:
         fq=build_nlp_model(q_input,config['rnn_hidden_size'],config['bidirectional'],config['rnn_drop_out'],config['lang_att'])  #build nlp model for fusion
 
-    y, E,co_enery = make_multitask_braches(Fv,fq, num_anchors*5,config)
+    # y, E,co_enery = make_multitask_braches(Fv,fq, num_anchors*5,config)
+    y = make_multitask_braches(Fv,fq, num_anchors*5,config)
 
-    return Model([inputs,q_input], [y,E,co_enery])
+    # return Model([inputs,q_input], [y,E,co_enery])
+    return Model([inputs, q_input], [y])
 
 def yolo_head(feats, anchors, input_shape, calc_loss=False,att_map=None):
     """Convert final layer features to bounding box parameters."""
@@ -248,12 +253,12 @@ def yolo_eval(yolo_outputs,
     num_layers = 1
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[0,1,2]] # default setting
     input_shape = K.shape(yolo_outputs[0])[1:3] * 32
-    seg_maps_ = K.sigmoid(yolo_outputs[1])
+    # seg_maps_ = K.sigmoid(yolo_outputs[1])
     boxes = []
     box_scores = []
     for l in range(num_layers):
         _boxes, _box_scores = yolo_boxes_and_scores(yolo_outputs[l],
-            anchors[anchor_mask[l]], input_shape, image_shape,seg_maps_)
+            anchors[anchor_mask[l]], input_shape, image_shape)
         boxes.append(_boxes)
         box_scores.append(_box_scores)
     boxes = K.concatenate(boxes, axis=0)
@@ -275,7 +280,10 @@ def yolo_eval(yolo_outputs,
     boxes_ = K.concatenate(boxes_, axis=0)
     scores_ = K.concatenate(scores_, axis=0)
 
-    return boxes_, scores_,seg_maps_
+    # return boxes_, scores_,seg_maps_
+    return boxes_, scores
+
+
 def yolo_eval_v2(yolo_outputs_shape,
                  anchors,
                  image_shape,
@@ -283,6 +291,7 @@ def yolo_eval_v2(yolo_outputs_shape,
                  score_threshold=.1,
                  iou_threshold=.5):
     """Evaluate YOLO model on given input and return filtered boxes."""
+    print(yolo_outputs_shape)
     inputs = [K.placeholder(shape=(1, ) + yolo_outputs_shape[1:])]  #change list to single
     num_layers = len(inputs)
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[0,1,2]] # default setting
@@ -314,6 +323,8 @@ def yolo_eval_v2(yolo_outputs_shape,
     boxes_=K.reshape(boxes_,[-1,4])
     scores_=K.reshape(scores_,[-1,1])
     return boxes_, scores_, inputs
+
+
 def preprocess_true_boxes(true_boxes, input_shape, anchors): #10.1 delete classfy
     '''Preprocess true boxes to training input format
 
@@ -444,10 +455,11 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
     '''
     num_layers = len(anchors)//3 # default setting
     yolo_outputs = args[:1]
-    mask_prob=args[1]
-    co_enegy=args[2]
-    y_true = args[3:4]
-    mask_gt=args[4]
+    # mask_prob=args[1]
+    # co_enegy=args[2]
+    # y_true = args[3:4]
+    y_true = args[1:2]
+    # mask_gt=args[4]
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[0,1,2]] ##due to deleting 2 scales  change [[6,7,8], [3,4,5], [0,1,2]] to [[0,1,2]]
     input_shape = K.cast(K.shape(yolo_outputs[0])[1:3] * 32, K.dtype(y_true[0]))   # x32 is original size
     grid_shapes = [K.cast(K.shape(yolo_outputs[l])[1:3], K.dtype(y_true[0])) for l in range(num_layers)] #3 degree scales output
@@ -508,18 +520,20 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
         wh_loss = object_mask * box_loss_scale * 0.5 * smooth_L1(raw_true_wh,raw_pred[...,2:4])
         confidence_loss = object_mask * K.binary_crossentropy(object_mask, raw_pred[...,4:5], from_logits=True)+ \
             (1-object_mask) * K.binary_crossentropy(object_mask, raw_pred[...,4:5], from_logits=True) * ignore_mask
-        seg_loss=K.binary_crossentropy(mask_gt, mask_prob, from_logits=True)
+        # seg_loss=K.binary_crossentropy(mask_gt, mask_prob, from_logits=True)
 
         xy_loss = K.sum(xy_loss) / mf
         wh_loss = K.sum(wh_loss) / mf
         confidence_loss = K.sum(confidence_loss) / mf
-        seg_loss = K.sum(seg_loss) / mf
-        co_enegy_loss=cem_loss(co_enegy) / mf
+        # seg_loss = K.sum(seg_loss) / mf
+        # co_enegy_loss=cem_loss(co_enegy) / mf
 
         # remove RES and CEM loss
         seg_loss_weight = 0.
         co_weight = 0.
-        loss += xy_loss+ wh_loss+ confidence_loss+seg_loss*seg_loss_weight+co_enegy_loss*co_weight
+        # loss += xy_loss+ wh_loss+ confidence_loss+seg_loss*seg_loss_weight+co_enegy_loss*co_weight
+        loss += xy_loss + wh_loss + confidence_loss
         if print_loss:
-            loss = tf.Print(loss, ['\n''co_peak_loss: ',co_enegy_loss,'co_peak_energe: ', K.sum(co_enegy)/mf], message='loss: ')
+            # loss = tf.Print(loss, ['\n''co_peak_loss: ',co_enegy_loss,'co_peak_energe: ', K.sum(co_enegy)/mf], message='loss: ')
+            loss = tf.Print(loss, [], message='loss: ')
     return  K.expand_dims(loss, axis=0)
