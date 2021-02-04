@@ -1,11 +1,11 @@
 {
-  "train_set": "./data/anns/refcoco/train.txt",
-  "evaluate_set": "./data/anns/refcoco/val.txt",
-  "seg_gt_path": "./data/masks/refcoco",
+  "train_set": "./data/anns/refcoco+/train.txt",
+  "evaluate_set": "./data/anns/refcoco+/val.txt",
+  "seg_gt_path": "./data/masks/refcoco+",
   "image_path": "./data/images/train2014",
-  "anchors_file": "./data/yolo_anchors.txt",
+  "anchors_file": "./data/refcoco_yolo_anchors.txt",
   "pretrained_weights":"./data/weights/yolov3_480000.h5",
-  "log_path": "./log/att_refcoco",
+  "log_path": "./log/att_refcoco+",
   "use_bert": 0,
   "backbone": "darknet",
   "batch_size": 35,
@@ -32,7 +32,6 @@
   "seed": 10010,
   "word_embed": "en_vectors_web_lg",
   "workers": 6,
-  "max_queue_size": 10,
-  "evaluate_model": "./log/mcb_att_refcoco/models/best_map.h5",
-  "fusion": "mcb"
+  "max_queue_size": 15,
+  "evaluate_model": "./log/att_refcoco+/models/best_map.h5"
 }

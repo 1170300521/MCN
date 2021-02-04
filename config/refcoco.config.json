@@ -5,7 +5,7 @@
   "image_path": "./data/images/train2014",
   "anchors_file": "./data/yolo_anchors.txt",
   "pretrained_weights":"./data/weights/yolov3_480000.h5",
-  "log_path": "./log/att_refcoco",
+  "log_path": "./log/refcoco",
   "use_bert": 0,
   "backbone": "darknet",
   "batch_size": 35,
@@ -25,14 +25,13 @@
   "rnn_drop_out": 0.1,
   "jemb_dim": 1024,
   "free_body": 1,
-  "att_loss_weight":0.05,
+  "att_loss_weight":0.0,
   "det_acc_thresh": 0.5,
   "segment_thresh": 0.35,
-  "log_images": 0,
+  "log_images": 1,
   "seed": 10010,
   "word_embed": "en_vectors_web_lg",
   "workers": 6,
   "max_queue_size": 10,
-  "evaluate_model": "./log/mcb_att_refcoco/models/best_map.h5",
-  "fusion": "mcb"
+  "evaluate_model": "./log/refcoco/models/best_map.h5"
 }

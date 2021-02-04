@@ -40,11 +40,12 @@ class Evaluator(object):
         num_anchors = len(self.anchors)
         det_gt = [Input(shape=(h // {0: 32, 1: 16, 2: 8}[l], w // {0: 32, 1: 16, 2: 8}[l],  3, 5)) for l
                   in range(1)]
+        att_gt = [Input(shape=(h // 32, w // 32))]
         # seg_gt=Input(shape=(h//self.seg_out_stride,w//self.seg_out_stride,1))
 
         model_body = yolo_body(image_input, q_input, num_anchors,config)  ######    place
 
-        if load_pretrained:
+        if not load_pretrained:
             model_body.load_weights(yolo_weights_path, by_name=True, skip_mismatch=True)
             print('Load weights {}.'.format(yolo_weights_path))
             if freeze_body in [1, 2]:
@@ -56,9 +57,9 @@ class Evaluator(object):
                 print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
 
         model_loss = Lambda(yolo_loss, output_shape=(1,), name='yolo_loss',
-                            arguments={'anchors': self.anchors,  'ignore_thresh': 0.5,'seg_loss_weight':config['seg_loss_weight']})(
-            [model_body.output, *det_gt])
-        model = Model([model_body.input[0], model_body.input[1], *det_gt], model_loss)
+                            arguments={'anchors': self.anchors,  'ignore_thresh': 0.5,'att_loss_weight':config['att_loss_weight']})(
+            [*model_body.output, *det_gt, *att_gt])
+        model = Model([model_body.input[0], model_body.input[1], *det_gt, *att_gt], model_loss)
         return model, model_body
 
     def eval(self):

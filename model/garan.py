@@ -63,10 +63,11 @@ def global_attentive_reason_unit(F_v,f_q,k=2):
     F_att=Lambda(split_batch_concat_dim,arguments={'n':k})(F_att)
     E=Lambda(split_batch_concat_dim,arguments={'n': k})(E) #(1024)
     #mean through dims
-    E=Lambda(K.mean,arguments={'axis':-1,'keepdims':True})(E)
+    # E=Lambda(K.mean,arguments={'axis':-1,'keepdims':True})(E)
+    E=Lambda(K.mean,arguments={'axis':-1,'keepdims':False})(E)
     #residual connect
     F_v_=Add()([F_att,F_v]) #(N,1,1024)
     # normalization
     F_v_ = LeakyReLU(alpha=0.1)(BatchNormalization()(F_v_))
 
-    return F_v_,F_att
+    return F_v_, E

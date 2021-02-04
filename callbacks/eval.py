@@ -104,7 +104,7 @@ class Evaluate(keras.callbacks.Callback):
 
     def evaluate(self, tag='image', is_save_images=False):
         # print(self.model.output_shape)
-        self.boxes, self.scores, self.eval_inputs = yolo_eval_v2(self.model.output_shape,self.anchors, self.input_image_shape,
+        self.boxes, self.scores, self.eval_inputs = yolo_eval_v2(self.model.output_shape[0],self.anchors, self.input_image_shape,
                                                                                score_threshold=0., iou_threshold=0.)
         # Add the class predict temp dict
         # pred_tmp = []
@@ -127,10 +127,11 @@ class Evaluate(keras.callbacks.Callback):
             word_vecs = []
             sentences = []
             gt_boxes = []
+            att_data = []
 #            gt_segs = []
 
             for data in batch_data:
-                image_data, box, word_vec, image, sentence = get_random_data(data, self.input_shape,
+                image_data, box, word_vec, image, sentence, att_map = get_random_data(data, self.input_shape,
                                                                                       self.word_embed, self.config,
                                                                                       train_mode=False)  # box is [1,5]
                 sentences.extend(sentence)
@@ -142,12 +143,14 @@ class Evaluate(keras.callbacks.Callback):
                     images.append(image_data)
                     images_org.append(image)
                     files_id.append(id)
+                    att_data.append(att_map)
  #                   gt_segs.append(seg_map)
                     id += 1
 
             images = np.array(images)
             word_vecs = np.array(word_vecs)
-            out_bboxes_1 = self.model.predict_on_batch([images, word_vecs])
+            att_data = np.array(att_data)
+            out_bboxes_1, _ = self.model.predict_on_batch([images, word_vecs])
 #            pred_segs = self.sigmoid_(pred_segs)  # logit to sigmoid
             for i, out in enumerate(out_bboxes_1):
                 # Predict

@@ -1,6 +1,7 @@
 """YOLO_v3 Model Defined in Keras."""
 
 import numpy as np
+import random
 import tensorflow as tf
 from keras import backend as K
 from keras.models import Model
@@ -11,7 +12,30 @@ from model.utils import *
 from model.visual_backbone import *
 from model.garan import global_attentive_reason_unit
 
-def simple_fusion(F_v,f_q,dim=1024):
+
+def bilinear_pool(x1, x2):
+    """
+    Implementation of Multimodal Compact Bilinear Pooling
+    """
+    origin_dim = K.int_shape(x2)[-1]
+    proj_dim=16000
+    # Get random indices
+    C = []
+    for i in range(2):
+        C1 = np.zeros([origin_dim, proj_dim])
+        for i in range(origin_dim):
+            C1[i][random.randint(0, proj_dim-1)] = 2 * random.randint(0, 1)-1
+        C.append(tf.Variable(C1, trainable=False, dtype='float32'))
+    # Modal fusion
+    p1 = tf.matmul(x1, C[0])
+    p2 = tf.matmul(x2, C[1])
+    pc1 = tf.complex(p1, tf.zeros_like(p1))
+    pc2 = tf.complex(p2, tf.zeros_like(p2))
+
+    conved = tf.ifft(tf.fft(pc1) * tf.fft(pc2))
+    return tf.real(conved)
+
+def simple_fusion(F_v,f_q,dim=1024, fusion='multi'):
     """
     :param F_v: visual features (N,w,h,d)
     :param f_q: GRU output (N,d_q)
@@ -26,7 +50,12 @@ def simple_fusion(F_v,f_q,dim=1024):
     f_q_proj=LeakyReLU(alpha=0.1)(BatchNormalization()(f_q_proj))
     f_q_proj=Lambda(expand_and_tile,arguments={'outsize':out_size})(f_q_proj)
     #simple elemwise multipy
-    F_m=Multiply()([F_v_proj,f_q_proj])
+    if fusion == 'multi':
+        F_m=Multiply()([F_v_proj,f_q_proj])
+    else:
+        F_m = Lambda(bilinear_pool, arguments={'x2': f_q_proj})(F_v_proj)
+        #F_m=mcb(F_v_proj, f_q_proj)
+        F_m=Dense(dim, activation='linear')(F_m)
     F_m = LeakyReLU(alpha=0.1)(BatchNormalization()(F_m))
     return F_m
 
@@ -56,12 +85,15 @@ def aspp_decoder(x,output=True):
         x=DarknetConv2D(shape[-1],(1,1))(x)
     return x
 
+
 def up_proj_cat_proj(x,y,di=256,do=256):
     x=UpSampling2D()(x)
     y=DarknetConv2D_BN_Leaky(di,(1,1))(y)
     out=Concatenate()([x,y])
     out=DarknetConv2D_BN_Leaky(do, (1,1))(out)
     return out
+
+
 def pool_proj_cat(x,y,di=256):
     if K.int_shape(x)[-1]>di:
         x=DarknetConv2D_BN_Leaky(di,(1,1))(x)
@@ -132,7 +164,7 @@ def make_multitask_braches(Fv,fq, out_filters,config):
     """
 
     #simple fusion
-    Fm = simple_fusion(Fv[0],fq,config['jemb_dim'])
+    Fm = simple_fusion(Fv[0],fq,config['jemb_dim'], fusion=config['fusion'])
     #segementation
     Ftd, F_as=segmentation_branch(Fm,Fv,fq)
     #detection
@@ -140,7 +172,7 @@ def make_multitask_braches(Fv,fq, out_filters,config):
     #co_enegy
     # co_enegy= co_enegy_func(F_as,F_ac)
     # return y,E,co_enegy
-    return y
+    return y, F_ac
 
 
 def yolo_body(inputs,q_input, num_anchors,config):
@@ -166,10 +198,10 @@ def yolo_body(inputs,q_input, num_anchors,config):
         fq=build_nlp_model(q_input,config['rnn_hidden_size'],config['bidirectional'],config['rnn_drop_out'],config['lang_att'])  #build nlp model for fusion
 
     # y, E,co_enery = make_multitask_braches(Fv,fq, num_anchors*5,config)
-    y = make_multitask_braches(Fv,fq, num_anchors*5,config)
+    y, E= make_multitask_braches(Fv,fq, num_anchors*5,config)
 
     # return Model([inputs,q_input], [y,E,co_enery])
-    return Model([inputs, q_input], [y])
+    return Model([inputs, q_input], [y, E])
 
 def yolo_head(feats, anchors, input_shape, calc_loss=False,att_map=None):
     """Convert final layer features to bounding box parameters."""
@@ -291,7 +323,7 @@ def yolo_eval_v2(yolo_outputs_shape,
                  score_threshold=.1,
                  iou_threshold=.5):
     """Evaluate YOLO model on given input and return filtered boxes."""
-    print(yolo_outputs_shape)
+    print("yolo_eval_v2", yolo_outputs_shape)
     inputs = [K.placeholder(shape=(1, ) + yolo_outputs_shape[1:])]  #change list to single
     num_layers = len(inputs)
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[0,1,2]] # default setting
@@ -438,7 +470,7 @@ def cem_loss(peak_map,lambda_peak=1.):
     # peak_map=K.clip(peak_map,1e-4,1.)
     return -K.sum(K.log(peak_map+1e-6))*lambda_peak
 
-def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=False):
+def yolo_loss(args, anchors, ignore_thresh=.5,att_loss_weight=0.1, print_loss=False):
     '''Return yolo_loss tensor
 
     Parameters
@@ -455,10 +487,12 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
     '''
     num_layers = len(anchors)//3 # default setting
     yolo_outputs = args[:1]
+    pred_att = args[1:2]
     # mask_prob=args[1]
     # co_enegy=args[2]
     # y_true = args[3:4]
-    y_true = args[1:2]
+    y_true = args[2:3]
+    att_map = args[3::]
     # mask_gt=args[4]
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[0,1,2]] ##due to deleting 2 scales  change [[6,7,8], [3,4,5], [0,1,2]] to [[0,1,2]]
     input_shape = K.cast(K.shape(yolo_outputs[0])[1:3] * 32, K.dtype(y_true[0]))   # x32 is original size
@@ -521,10 +555,12 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
         confidence_loss = object_mask * K.binary_crossentropy(object_mask, raw_pred[...,4:5], from_logits=True)+ \
             (1-object_mask) * K.binary_crossentropy(object_mask, raw_pred[...,4:5], from_logits=True) * ignore_mask
         # seg_loss=K.binary_crossentropy(mask_gt, mask_prob, from_logits=True)
+        att_loss = K.binary_crossentropy(att_map[l], pred_att[l], from_logits=True)
 
         xy_loss = K.sum(xy_loss) / mf
         wh_loss = K.sum(wh_loss) / mf
         confidence_loss = K.sum(confidence_loss) / mf
+        att_loss = K.sum(att_loss) / mf
         # seg_loss = K.sum(seg_loss) / mf
         # co_enegy_loss=cem_loss(co_enegy) / mf
 
@@ -532,7 +568,7 @@ def yolo_loss(args, anchors, ignore_thresh=.5,seg_loss_weight=0.1, print_loss=Fa
         seg_loss_weight = 0.
         co_weight = 0.
         # loss += xy_loss+ wh_loss+ confidence_loss+seg_loss*seg_loss_weight+co_enegy_loss*co_weight
-        loss += xy_loss + wh_loss + confidence_loss
+        loss += xy_loss + wh_loss + confidence_loss + att_loss_weight * att_loss
         if print_loss:
             # loss = tf.Print(loss, ['\n''co_peak_loss: ',co_enegy_loss,'co_peak_energe: ', K.sum(co_enegy)/mf], message='loss: ')
             loss = tf.Print(loss, [], message='loss: ')

@@ -1,11 +1,11 @@
 {
-  "train_set": "./data/anns/refcoco/train.txt",
-  "evaluate_set": "./data/anns/refcoco/val.txt",
-  "seg_gt_path": "./data/masks/refcoco",
+  "train_set": "./data/anns/refcocog/train.txt",
+  "evaluate_set": "./data/anns/refcocog/val.txt",
+  "seg_gt_path": "./data/masks/refcocog",
   "image_path": "./data/images/train2014",
   "anchors_file": "./data/yolo_anchors.txt",
-  "pretrained_weights":"./data/weights/yolov3_450000.h5",
-  "log_path": "./log/refcoco",
+  "pretrained_weights":"./data/weights/yolov3_480000.h5",
+  "log_path": "./log/att_refcocog",
   "use_bert": 0,
   "backbone": "darknet",
   "batch_size": 35,
@@ -15,7 +15,7 @@
   "steps": [30, 35, 40],
   "epoches": 45,
   "start_epoch":0,
-  "word_len": 15,
+  "word_len": 20,
   "embed_dim": 300,
   "bidirectional": 1,
   "crf":0,
@@ -25,7 +25,7 @@
   "rnn_drop_out": 0.1,
   "jemb_dim": 1024,
   "free_body": 1,
-  "seg_loss_weight":0.1,
+  "att_loss_weight":0.05,
   "det_acc_thresh": 0.5,
   "segment_thresh": 0.35,
   "log_images": 0,
@@ -33,5 +33,5 @@
   "word_embed": "en_vectors_web_lg",
   "workers": 6,
   "max_queue_size": 10,
-  "evaluate_model": "./log/refcoco/models/best_map.h5"
+  "evaluate_model": "./log/att_refcocog/models/best_map.h5"
 }
