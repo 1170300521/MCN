@@ -6,8 +6,8 @@ import os
 import numpy as np
 from utils.tensorboard_logging import log_scalar
 
-from keras.callbacks import Callback
-import keras.backend as K
+from tensorflow.keras.callbacks import Callback
+import tensorflow.keras.backend as K
 
 
 class LearningRateScheduler(Callback):

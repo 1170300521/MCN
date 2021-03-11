@@ -3,37 +3,38 @@
 import numpy as np
 import random
 import tensorflow as tf
-from keras import backend as K
-from keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
 import cv2
 from model.language_backbone import build_nlp_model
-from model.bert import build_bert
+# from model.bert import build_bert
 from model.utils import *
 from model.visual_backbone import *
 from model.garan import global_attentive_reason_unit
+from model.CBP import compact_bilinear_pool
+from model.transformer import TransformerEncoder, PositionEmbeddingSine
 
-
-def bilinear_pool(x1, x2):
-    """
-    Implementation of Multimodal Compact Bilinear Pooling
-    """
-    origin_dim = K.int_shape(x2)[-1]
-    proj_dim=16000
-    # Get random indices
-    C = []
-    for i in range(2):
-        C1 = np.zeros([origin_dim, proj_dim])
-        for i in range(origin_dim):
-            C1[i][random.randint(0, proj_dim-1)] = 2 * random.randint(0, 1)-1
-        C.append(tf.Variable(C1, trainable=False, dtype='float32'))
-    # Modal fusion
-    p1 = tf.matmul(x1, C[0])
-    p2 = tf.matmul(x2, C[1])
-    pc1 = tf.complex(p1, tf.zeros_like(p1))
-    pc2 = tf.complex(p2, tf.zeros_like(p2))
-
-    conved = tf.ifft(tf.fft(pc1) * tf.fft(pc2))
-    return tf.real(conved)
+#def bilinear_pool(x1, x2):
+#    """
+#    Implementation of Multimodal Compact Bilinear Pooling
+#    """
+#    origin_dim = K.int_shape(x2)[-1]
+#    proj_dim=16000
+#    # Get random indices
+#    C = []
+#    for i in range(2):
+#        C1 = np.zeros([origin_dim, proj_dim])
+#        for i in range(origin_dim):
+#            C1[i][random.randint(0, proj_dim-1)] = 2 * random.randint(0, 1)-1
+#        C.append(tf.Variable(C1, trainable=False, dtype='float32'))
+#    # Modal fusion
+#    p1 = tf.matmul(x1, C[0])
+#    p2 = tf.matmul(x2, C[1])
+#    pc1 = tf.complex(p1, tf.zeros_like(p1))
+#    pc2 = tf.complex(p2, tf.zeros_like(p2))
+#
+#    conved = tf.ifft(tf.fft(pc1) * tf.fft(pc2))
+#    return tf.real(conved)
 
 def simple_fusion(F_v,f_q,dim=1024, fusion='multi'):
     """
@@ -53,7 +54,7 @@ def simple_fusion(F_v,f_q,dim=1024, fusion='multi'):
     if fusion == 'multi':
         F_m=Multiply()([F_v_proj,f_q_proj])
     else:
-        F_m = Lambda(bilinear_pool, arguments={'x2': f_q_proj})(F_v_proj)
+        F_m = Lambda(compact_bilinear_pool, arguments={'bottom2': f_q_proj})(F_v_proj)
         #F_m=mcb(F_v_proj, f_q_proj)
         F_m=Dense(dim, activation='linear')(F_m)
     F_m = LeakyReLU(alpha=0.1)(BatchNormalization()(F_m))
@@ -115,7 +116,7 @@ def segmentation_branch(F_m,visual_feats,f_q):
     # E=aspp_decoder(Fm_down)
     return [Fm_mid,Fm_down], Att_seg
 
-def detection_branch(Fm,Ftd,fq,out_filters):
+def detection_branch(Fm,Ftd,fq,out_filters, training, num_layers=0):
     #bottom-up branch
     #Down sampling
     Fm_mid= pool_proj_cat(Ftd[1],Ftd[0],K.int_shape(Fm)[-1]//2)
@@ -123,6 +124,13 @@ def detection_branch(Fm,Ftd,fq,out_filters):
     Fm_top = pool_proj_cat(Fm_mid, Fm, K.int_shape(Fm)[-1] // 2)
     #projection
     Fm_top=DarknetConv2D_BN_Leaky(K.int_shape(Fm)[-1]//2, (1,1))(Fm_top)
+    b, h, w, c = K.int_shape(Fm_top)
+    if num_layers > 0:
+        pos_emb = PositionEmbeddingSine(num_pos_feats=c)(Fm_top)
+        Fm_top = K.reshape(Fm_top, (-1, h*w, c))
+        pos_emb = K.reshape(pos_emb, (-1, h*w, c))
+        Fm_top = TransformerEncoder(embed_dim=c, num_layers=num_layers)(Fm_top, training=training)
+        Fm_top = K.reshape(Fm_top, (-1, h, w, c))
     #garan unit
     Fm_top, Att_det = global_attentive_reason_unit(Fm_top, fq)
     #detection
@@ -154,6 +162,8 @@ def co_enegy_func(F_as,F_ac):
     co_enegy=Dot([-1,1])([Es,Tsc])
     co_enegy=Dot(-1)([co_enegy,Ec])
     return  co_enegy
+
+
 def make_multitask_braches(Fv,fq, out_filters,config):
     """
     :param featrue_feats:
@@ -168,8 +178,8 @@ def make_multitask_braches(Fv,fq, out_filters,config):
     #segementation
     Ftd, F_as=segmentation_branch(Fm,Fv,fq)
     #detection
-    y, F_ac=  detection_branch(Fm,Ftd,fq,out_filters)
-    #co_enegy
+    y, F_ac = detection_branch(Fm,Ftd,fq,out_filters, True, num_layers=config['enc_layers'])
+    # co_enegy
     # co_enegy= co_enegy_func(F_as,F_ac)
     # return y,E,co_enegy
     return y, F_ac
@@ -187,8 +197,10 @@ def yolo_body(inputs,q_input, num_anchors,config):
     assert config['backbone'] in ["darknet","vgg"]
     if config['backbone'] =="darknet":
         darknet = Model(inputs, darknet_body(inputs))
-        print(darknet.output_shape, darknet.layers[152].output_shape, darknet.layers[92].output_shape)
-        Fv = [darknet.output, darknet.layers[152].output, darknet.layers[92].output]
+#        for i in range(len(darknet.layers)):
+#            print(i, darknet.layers[i].output_shape)
+        print(darknet.output_shape, darknet.layers[47].output_shape, darknet.layers[29].output_shape)
+        Fv = [darknet.output, darknet.layers[47].output, darknet.layers[29].output]
     else:
         Fv = vgg16(inputs)
 
@@ -202,6 +214,7 @@ def yolo_body(inputs,q_input, num_anchors,config):
 
     # return Model([inputs,q_input], [y,E,co_enery])
     return Model([inputs, q_input], [y, E])
+
 
 def yolo_head(feats, anchors, input_shape, calc_loss=False,att_map=None):
     """Convert final layer features to bounding box parameters."""
@@ -470,6 +483,7 @@ def cem_loss(peak_map,lambda_peak=1.):
     # peak_map=K.clip(peak_map,1e-4,1.)
     return -K.sum(K.log(peak_map+1e-6))*lambda_peak
 
+
 def yolo_loss(args, anchors, ignore_thresh=.5,att_loss_weight=0.1, print_loss=False):
     '''Return yolo_loss tensor
 
@@ -523,7 +537,7 @@ def yolo_loss(args, anchors, ignore_thresh=.5,att_loss_weight=0.1, print_loss=Fa
             best_iou = K.max(iou, axis=-1)
             ignore_mask = ignore_mask.write(b, K.cast(best_iou<ignore_thresh, K.dtype(true_box)))
             return b+1, ignore_mask
-        _, ignore_mask = K.control_flow_ops.while_loop(lambda b,*args: b<m, loop_body, [0, ignore_mask])
+        _, ignore_mask = tf.while_loop(lambda b,*args: b<m, loop_body, [0, ignore_mask])
         ignore_mask = ignore_mask.stack()
         ignore_mask = K.expand_dims(ignore_mask, -1)
 

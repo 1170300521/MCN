@@ -1,22 +1,25 @@
-import keras as K
+# import keras as K
 import tensorflow as tf
 import spacy
-from keras.layers.recurrent import GRU,LSTM
-from keras.layers import Bidirectional,Input,Dense,BatchNormalization,LeakyReLU,Lambda,Reshape,Add,Masking,Dropout,Multiply
-from keras import  Model
+from tensorflow.keras.layers import GRU,LSTM
+from tensorflow.keras.layers import Bidirectional,Input,Dense,BatchNormalization,LeakyReLU,Lambda,Reshape,Add,Masking,Dropout,Multiply
+from tensorflow.keras.models import  Model
 import re
 import  math
 import numpy as np
-import keras.backend as K
+import tensorflow.keras.backend as K
+
+
 def gru_rnn_module_a(word_embs,rnn_dim,dropout,return_seq):
-    with tf.variable_scope('gru_module'):
+    with tf.compat.v1.variable_scope('gru_module'):
         if dropout>0.:
             lstm_cell = Bidirectional(GRU(rnn_dim,return_sequences=return_seq,dropout=dropout),merge_mode="sum")(word_embs)
         else:
             lstm_cell=Bidirectional(GRU(rnn_dim,return_sequences=return_seq),merge_mode="sum")(word_embs)
         return lstm_cell
+
 def gru_rnn_module_s(word_embs,rnn_dim,dropout,return_seq):
-    with tf.variable_scope('gru_module'):
+    with tf.compat.v1.variable_scope('gru_module'):
         if dropout>0.:
             lstm_cell = GRU(rnn_dim,dropout=dropout,return_sequences=return_seq)(word_embs)
         else:

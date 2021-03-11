@@ -1,9 +1,10 @@
-from keras.layers import Conv2D, Add, ZeroPadding2D, ReLU,UpSampling2D,Flatten, Concatenate, MaxPooling2D,Multiply,Input,Lambda,Dense,Dropout,Dot,Reshape,Activation,GlobalAveragePooling2D,AveragePooling2D
-import keras.backend as K
+import tensorflow.keras.backend as K
 import tensorflow as tf
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.normalization import BatchNormalization
+from tensorflow.keras.layers import Conv2D, Add, ZeroPadding2D, ReLU,UpSampling2D,Flatten, Concatenate, MaxPooling2D,Multiply,Input,Lambda,Dense,Dropout,Dot,Reshape,Activation,GlobalAveragePooling2D,AveragePooling2D, LeakyReLU, BatchNormalization
+
 from model.utils import *
+
+
 def global_attention_block(F_v,f_q):
     """
     :param F_v: N,w,h,d/k
@@ -43,8 +44,9 @@ def global_attention_block(F_v,f_q):
     #attention map
     E_col=Reshape([fv_shape[1],fv_shape[2],1])(E_col)#(N,w,h,1)
     return F_att,E_col
-def global_attentive_reason_unit(F_v,f_q,k=2):
 
+
+def global_attentive_reason_unit(F_v,f_q,k=2):
     """
     F_v:N,w,h,d
     f_q:N,q_d

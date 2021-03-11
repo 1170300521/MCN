@@ -2,9 +2,10 @@ import numpy as np
 import random
 import warnings
 import spacy
-import keras
+from tensorflow import keras
 from utils.utils import get_random_data
 from model.mcn_model import preprocess_true_boxes
+
 class Generator(keras.utils.Sequence):
     """ Abstract generator class.
     """

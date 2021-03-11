@@ -1,11 +1,11 @@
 from __future__ import unicode_literals
-from keras.layers import  Lambda
-import keras
+from tensorflow.keras.layers import  Lambda
+from tensorflow import keras
 from keras_bert.layers import Extract, MaskedGlobalMaxPool1D
 from keras_bert.loader import load_trained_model_from_checkpoint, load_vocabulary
 from keras_bert.tokenizer import Tokenizer
 from collections import namedtuple
-import keras.backend as K
+import tensorflow.keras.backend as K
 import os
 import numpy as np
 __all__ = [

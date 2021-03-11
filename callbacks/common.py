@@ -1,7 +1,7 @@
-import keras.callbacks
+import tensorflow.keras.callbacks
 
 
-class RedirectModel(keras.callbacks.Callback):
+class RedirectModel(tensorflow.keras.callbacks.Callback):
     """Callback which wraps another callback, but executed on a different model.
 
     ```python

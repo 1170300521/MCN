@@ -1,10 +1,11 @@
-import keras
+from tensorflow import keras
+import tensorflow as tf
 from model.mcn_model import yolo_eval_v2
 import numpy as np
 from utils.utils import get_random_data
 from utils.tensorboard_logging import *
 import cv2
-import keras.backend as K
+import tensorflow.keras.backend as K
 from matplotlib.pyplot import cm
 import spacy
 import  progressbar
@@ -53,7 +54,7 @@ class Evaluate(keras.callbacks.Callback):
         else:
             self.log_images=0
         self.input_image_shape = K.placeholder(shape=(2,))
-        self.sess = K.get_session()
+        self.sess = tf.compat.v1.keras.backend.get_session()
         self.eval_save_images_id = [i for i in np.random.randint(0, len(self.val_data), 200)]
         super(Evaluate, self).__init__()
     def nls(self,pred_seg,pred_box,weight_score=None,lamb_au=-1.,lamb_bu=2,lamb_ad=1.,lamb_bd=0):

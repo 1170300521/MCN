@@ -9,9 +9,9 @@ import spacy
 import re
 import cv2
 import time
-from keras_bert.tokenizer import Tokenizer
-from keras_bert.loader import load_trained_model_from_checkpoint, load_vocabulary
-from keras_bert import extract_embeddings
+#from keras_bert.tokenizer import Tokenizer
+#from keras_bert.loader import load_trained_model_from_checkpoint, load_vocabulary
+#from keras_bert import extract_embeddings
 import os
 
 

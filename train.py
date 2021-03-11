@@ -1,24 +1,26 @@
 import os
 import numpy as np
-import keras.backend as K
-from keras.layers import Input, Lambda
-from keras.models import Model
-from keras.optimizers import Adam
+import tensorflow.keras.backend as K
+from tensorflow.keras.layers import Input, Lambda
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
 from model.mcn_model import  yolo_body, yolo_loss
 import tensorflow as tf
 from utils.parse_config import  config
 from loader.loader import Generator
 from callbacks.eval import Evaluate
-from keras.callbacks import TensorBoard, ModelCheckpoint
+from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 from callbacks.learning_scheduler import LearningRateScheduler
 from callbacks.common import RedirectModel
 from utils.utils import lr_step_decay
 import json
+from tensorflow.python.framework.ops import disable_eager_execution
 
+#disable_eager_execution()
 np.random.seed(config['seed'])
-tf.set_random_seed(config['seed'])
+tf.random.set_seed(config['seed'])
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0" #(or "1" or "2")
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" #(or "1" or "2")
 MODELS_PATH = os.path.join(config['log_path'], 'models')
 if not os.path.exists(MODELS_PATH):
     os.makedirs(MODELS_PATH)
@@ -47,7 +49,7 @@ class Learner(object):
         # training batch size
         self.start_epoch=config['start_epoch']
 
-        self.n_freeze=185+12
+        self.n_freeze=59+12
         if config['backbone']=='vgg':
             self.n_freeze = 34 + 12
         self.yolo_model, self.yolo_body = self.create_model(yolo_weights_path=config['pretrained_weights'],freeze_body=config['free_body'])
@@ -95,9 +97,9 @@ class Learner(object):
                 num = (self.n_freeze, len(model_body.layers) - 3)[freeze_body - 1]
                 # print(num)
                 for i in range(num): model_body.layers[i].trainable = False
-                for i in range(num,len(model_body.layers)): print(model_body.layers[i].name)
+                # for i in range(num,len(model_body.layers)): print(model_body.layers[i].name)
                 print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
-
+#
         model_loss = Lambda(yolo_loss, output_shape=(1,), name='yolo_loss',
                             arguments={'anchors': self.anchors,  'ignore_thresh': 0.5,'att_loss_weight':config['att_loss_weight']})(
             [*model_body.output, *det_gt, *att_gt])
@@ -110,11 +112,12 @@ class Learner(object):
 
         # Yolo Compile
         self.yolo_model.compile(loss={'yolo_loss': lambda y_true, y_pred: y_pred}, optimizer=Adam(lr=config['lr']))
+#                                experimental_fun_tf_function=False)
         if config['workers']>0:
             use_multiprocessing=True
         else:
             use_multiprocessing=False
-        self.yolo_model.fit_generator(self.train_generator,
+        self.yolo_model.fit(self.train_generator,
                                       callbacks=self.callbacks,
                                       epochs=config['epoches'],
                                       initial_epoch=config['start_epoch'],
