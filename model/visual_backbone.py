@@ -95,7 +95,8 @@ def darknet_body(x):
             DarknetConv2D_BN_Leaky(512, (1,1)),
             DarknetConv2D_BN_Leaky(1024, (3,3)),
             DarknetConv2D_BN_Leaky(512, (1,1)),
-        DarknetConv2D_BN_Leaky(1024, (3, 3))])(x)
+            DarknetConv2D_BN_Leaky(1024, (3, 3))
+    ])(x)
     return x
 
 def darknet_resblock(x,num_filters):

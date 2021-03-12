@@ -49,7 +49,7 @@ class Learner(object):
         # training batch size
         self.start_epoch=config['start_epoch']
 
-        self.n_freeze=59+12
+        self.n_freeze=59
         if config['backbone']=='vgg':
             self.n_freeze = 34 + 12
         self.yolo_model, self.yolo_body = self.create_model(yolo_weights_path=config['pretrained_weights'],freeze_body=config['free_body'])
@@ -74,12 +74,13 @@ class Learner(object):
         lr_schedue = LearningRateScheduler(lr_step_decay(config['lr'],config['steps']), logging,verbose=1,init_epoch=config['start_epoch'])
         call_backs.append(lr_schedue)
         self.callbacks=call_backs
+    
     def create_model(self, load_pretrained=True, freeze_body=1,
                      yolo_weights_path='/home/luogen/weights/coco/yolo_weights.h5'):
         K.clear_session()  # get a new session
         image_input = Input(shape=(self.input_shape))
         q_input = Input(shape=[self.word_len, self.embed_dim], name='q_input')
-        h, w,_ = self.input_shape
+        h, w, _ = self.input_shape
         num_anchors = len(self.anchors)
 ########12.17  change label size to be suitable with scales
         det_gt = [Input(shape=(h // {0: 32, 1: 16, 2: 8}[l], w // {0: 32, 1: 16, 2: 8}[l],  3, 5)) for l
@@ -90,7 +91,7 @@ class Learner(object):
         model_body = yolo_body(image_input, q_input, num_anchors,config)  ######    place
 
         if load_pretrained:
-            model_body.load_weights(yolo_weights_path, by_name=True, skip_mismatch=True)
+            # model_body.load_weights(yolo_weights_path, by_name=True, skip_mismatch=True)
             print('Load weights {}.'.format(yolo_weights_path))
             if freeze_body in [1, 2]:
                 # Freeze darknet53 body or freeze all but 3 output layers.

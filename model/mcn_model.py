@@ -1,10 +1,11 @@
 """YOLO_v3 Model Defined in Keras."""
 
 import numpy as np
+import os
 import random
 import tensorflow as tf
 from tensorflow.keras import backend as K
-from tensorflow.keras.models import Model
+from tensorflow.keras.models import Model, load_model
 import cv2
 from model.language_backbone import build_nlp_model
 # from model.bert import build_bert
@@ -195,11 +196,22 @@ def yolo_body(inputs,q_input, num_anchors,config):
     """
     """Create Multi-Modal YOLO_V3 model CNN body in Keras."""
     assert config['backbone'] in ["darknet","vgg"]
-    if config['backbone'] =="darknet":
+    if config['backbone'] == "darknet":
         darknet = Model(inputs, darknet_body(inputs))
+        if os.path.exists(config['pretrained_weights']):
+            tmp_model = load_model(config['pretrained_weights'])
+            tmp_weights = tmp_model.get_weights()
+            dark_weights = darknet.get_weights()
+            min_len = len(dark_weights)
+            for i in range(min_len):
+                if tmp_weights[i].shape != dark_weights[i].shape:
+                    tmp_weights[i] = dark_weights[i]
+            darknet.set_weights(tmp_weights[0:min_len])
+
+#        darknet.save("darknet.h5")
 #        for i in range(len(darknet.layers)):
 #            print(i, darknet.layers[i].output_shape)
-        print(darknet.output_shape, darknet.layers[47].output_shape, darknet.layers[29].output_shape)
+#        print(darknet.output_shape, darknet.layers[47].output_shape, darknet.layers[29].output_shape)
         Fv = [darknet.output, darknet.layers[47].output, darknet.layers[29].output]
     else:
         Fv = vgg16(inputs)
