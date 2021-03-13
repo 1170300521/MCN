@@ -23,32 +23,36 @@ def log_scalar(callback, tag, value, step):
     step : int
         training iteration
     """
-    summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
-                                                 simple_value=value)])
-    # callback.writer.add_summary(summary, step)
+#    summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
+#                                                 simple_value=value)])
+#    callback.writer.add_summary(summary, step)
+    with self.callback.as_default():
+        tf.summary.scalar(tag, value, step=step)
+        self.callback.flush()
 
 
 def log_images(callback, tag, images, step):
     """Logs a list of images."""
-
-    im_summaries = []
-    for nr, img in enumerate(images):
-        # Write the image to a string
-        s = BytesIO()
-        plt.imsave(s, img, format='png')
-
-        # Create an Image object
-        img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
-                                   height=img.shape[0],
-                                   width=img.shape[1])
-        # Create a Summary value
-        im_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, nr),
-                                             image=img_sum))
-
-    # Create and write Summary
-    summary = tf.Summary(value=im_summaries)
-    # callback.writer.add_summary(summary, step)
-
+    with callback.as_default():
+        tf.summary.image(tag, images, step=step)
+#    im_summaries = []
+#    for nr, img in enumerate(images):
+#        # Write the image to a string
+#        s = BytesIO()
+#        plt.imsave(s, img, format='png')
+#
+#        # Create an Image object
+#        img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
+#                                   height=img.shape[0],
+#                                   width=img.shape[1])
+#        # Create a Summary value
+#        im_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, nr),
+#                                             image=img_sum))
+#
+#    # Create and write Summary
+#    summary = tf.Summary(value=im_summaries)
+#    callback.writer.add_summary(summary, step)
+#
 
 def log_histogram(callback, tag, values, step, bins=1000):
     """Logs the histogram of a list/vector of values."""
@@ -79,5 +83,5 @@ def log_histogram(callback, tag, values, step, bins=1000):
 
     # Create and write Summary
     summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
-    # callback.writer.add_summary(summary, step)
-    # callback.writer.flush()
+    callback.writer.add_summary(summary, step)
+    callback.writer.flush()

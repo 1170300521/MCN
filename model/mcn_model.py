@@ -246,8 +246,8 @@ def yolo_head(feats, anchors, input_shape, calc_loss=False,att_map=None):
         feats, [-1, grid_shape[0], grid_shape[1], num_anchors, 5])
 
     # Adjust preditions to each spatial grid point and anchor size.
-    box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[::-1], K.dtype(feats))
-    box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[::-1], K.dtype(feats))
+    box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[..., ::-1], K.dtype(feats))
+    box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[..., ::-1], K.dtype(feats))
     if att_map is not  None:
         seg_map=K.tile(att_map,[1,1,1,3])
         seg_map=K.expand_dims(seg_map,axis=-1)

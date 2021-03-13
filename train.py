@@ -62,7 +62,8 @@ class Learner(object):
         call_backs = []
         logging = TensorBoard(log_dir=config['log_path'])
         call_backs.append(logging)
-        ap_evaluate = Evaluate(self.val_data,self.anchors,config, tensorboard=logging)
+        eval_log = tf.summary.create_file_writer(config['log_path']) 
+        ap_evaluate = Evaluate(self.val_data,self.anchors,config, tensorboard=eval_log)
         call_backs.append(RedirectModel(ap_evaluate,self.yolo_body))
         checkpoint_map = ModelCheckpoint(config['log_path'] + '/models/best_map.h5',
                                          verbose=1,
@@ -71,7 +72,7 @@ class Learner(object):
                                          monitor="det_acc",
                                          mode='max')
         call_backs.append(checkpoint_map)
-        lr_schedue = LearningRateScheduler(lr_step_decay(config['lr'],config['steps']), logging,verbose=1,init_epoch=config['start_epoch'])
+        lr_schedue = LearningRateScheduler(lr_step_decay(config['lr'],config['steps']), eval_log,verbose=1,init_epoch=config['start_epoch'])
         call_backs.append(lr_schedue)
         self.callbacks=call_backs
     

@@ -10,6 +10,8 @@ from matplotlib.pyplot import cm
 import spacy
 import  progressbar
 
+tf.compat.v1.disable_eager_execution()
+
 class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
     """
@@ -73,14 +75,14 @@ class Evaluate(keras.callbacks.Callback):
 
         # run evaluation
         self.det_acc = self.evaluate(is_save_images=self.log_images)
-
-
-        if self.tensorboard is not None and self.tensorboard.writer is not None:
-            import tensorflow as tf
-            summary = tf.Summary()
-            summary_value = summary.value.add()
-            summary_value.simple_value = self.det_acc
-            summary_value.tag = "det_acc"
+        if self.tensorboard is not None:
+            with self.tensorboard.as_default():
+                tf.summary.scalar("det_acc", self.det_acc, step=epoch)
+                self.tensorboard.flush()
+#            summary = tf.compat.v1.Summary()
+#            summary_value = summary.value.add()
+#            summary_value.simple_value = self.det_acc
+#            summary_value.tag = "det_acc"
 #            summary_value = summary.value.add()
 #            summary_value.simple_value = self.seg_iou
 #            summary_value.tag = "seg_iou"
@@ -91,7 +93,7 @@ class Evaluate(keras.callbacks.Callback):
 #                summary_value = summary.value.add()
 #                summary_value.simple_value = self.seg_prec[item]
 #                summary_value.tag = "map@%.2f"% item
-            self.tensorboard.writer.add_summary(summary, epoch)
+#            self.tensorboard.writer.add_summary(summary, epoch)
 
         logs['det_acc'] = self.det_acc
 #        logs['seg_iou'] = self.seg_iou
