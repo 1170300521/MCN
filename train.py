@@ -20,7 +20,8 @@ from tensorflow.python.framework.ops import disable_eager_execution
 np.random.seed(config['seed'])
 tf.random.set_seed(config['seed'])
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1" #(or "1" or "2")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0" #(or "1" or "2")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 MODELS_PATH = os.path.join(config['log_path'], 'models')
 if not os.path.exists(MODELS_PATH):
     os.makedirs(MODELS_PATH)

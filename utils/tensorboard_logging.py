@@ -8,7 +8,8 @@ __author__ = "Michael Gygli"
 
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+# import tensorflow.compat.v1 as tf
 from io import BytesIO
 
 
@@ -26,9 +27,9 @@ def log_scalar(callback, tag, value, step):
 #    summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
 #                                                 simple_value=value)])
 #    callback.writer.add_summary(summary, step)
-    with self.callback.as_default():
+    with callback.as_default():
         tf.summary.scalar(tag, value, step=step)
-        self.callback.flush()
+        callback.flush()
 
 
 def log_images(callback, tag, images, step):
