@@ -61,8 +61,8 @@ class Learner(object):
 
         #call_back_init
         call_backs = []
-        logging = TensorBoard(log_dir=config['log_path'])
-        call_backs.append(logging)
+#        logging = TensorBoard(log_dir=config['log_path'])
+#        call_backs.append(logging)
         eval_log = tf.summary.create_file_writer(config['log_path']) 
         ap_evaluate = Evaluate(self.val_data,self.anchors,config, tensorboard=eval_log)
         call_backs.append(RedirectModel(ap_evaluate,self.yolo_body))
