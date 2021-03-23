@@ -47,28 +47,18 @@ class Evaluate(keras.callbacks.Callback):
         self.word_embed=spacy.load(config['word_embed'])
         self.word_len = config['word_len']
         self.anchors=anchors
-        self.use_nls=config['use_nls']
         # mAP setting
         self.det_acc_thresh = config['det_acc_thresh']
-#        self.seg_min_overlap=config['segment_thresh']
         if self.tensorboard is not  None:
             self.log_images=config['log_images']
         else:
             self.log_images=0
         self.input_image_shape = K.placeholder(shape=(2,))
-        self.sess = tf.compat.v1.keras.backend.get_session()
+#        self.sess = tf.compat.v1.keras.backend.get_session()
+        self.sess = tf.compat.v1.Session()
         self.eval_save_images_id = [i for i in np.random.randint(0, len(self.val_data), 200)]
         super(Evaluate, self).__init__()
-    def nls(self,pred_seg,pred_box,weight_score=None,lamb_au=-1.,lamb_bu=2,lamb_ad=1.,lamb_bd=0):
-        if weight_score is not None:
-            #asnls
-            mask = np.ones_like(pred_seg, dtype=np.float32)*weight_score*lamb_ad+lamb_bd
-            mask[pred_box[1]:pred_box[3] + 1, pred_box[0]:pred_box[2] + 1, ...]=weight_score*lamb_au+lamb_bu
-        else:
-            #hard-nls
-            mask=np.zeros_like(pred_seg,dtype=np.float32)
-            mask[pred_box[1]:pred_box[3]+1,pred_box[0]:pred_box[2]+1,...]=1.
-        return pred_seg*mask
+
     def on_epoch_end(self, epoch, logs=None):
         if logs is None:
             logs={}
@@ -79,31 +69,10 @@ class Evaluate(keras.callbacks.Callback):
             with self.tensorboard.as_default():
                 tf.summary.scalar("det_acc", self.det_acc, step=epoch)
                 self.tensorboard.flush()
-#            summary = tf.compat.v1.Summary()
-#            summary_value = summary.value.add()
-#            summary_value.simple_value = self.det_acc
-#            summary_value.tag = "det_acc"
-#            summary_value = summary.value.add()
-#            summary_value.simple_value = self.seg_iou
-#            summary_value.tag = "seg_iou"
-#            summary_value = summary.value.add()
-#            summary_value.simple_value = self.ie_score
-#            summary_value.tag = "ie_score"
-#            for item in self.seg_prec:
-#                summary_value = summary.value.add()
-#                summary_value.simple_value = self.seg_prec[item]
-#                summary_value.tag = "map@%.2f"% item
-#            self.tensorboard.writer.add_summary(summary, epoch)
-
         logs['det_acc'] = self.det_acc
-#        logs['seg_iou'] = self.seg_iou
-#        logs['ie_score']=self.ie_score
-#        logs['seg_prec']=self.seg_prec
 
         if self.verbose == 1:
             print('det_acc: {:.4f}'.format(self.det_acc))
-#            print('seg_iou: {:.4f}'.format(self.seg_iou))
-#            print('ie_score: {:.4f}'.format(self.ie_score))
 
     def evaluate(self, tag='image', is_save_images=False):
         # print(self.model.output_shape)
@@ -193,7 +162,7 @@ class Evaluate(keras.callbacks.Callback):
 #                    else:
 #                        seg_prec_all[item] = seg_prec[item]
                 # detection eval
-                pred_box = self.box_value_fix(out_boxes[0],self.input_shape)
+                pred_box = self.box_value_fix(out_boxes[0], self.input_shape)
                 score = out_scores[0]
                 detect_prec = self.cal_detect_iou(pred_box, gt_boxes[i], self.det_acc_thresh)
                 detect_prec_all += detect_prec

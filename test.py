@@ -33,7 +33,7 @@ class Evaluator(object):
 
     def create_model(self, load_pretrained=True, freeze_body=1,
                      yolo_weights_path='/home/luogen/weights/coco/yolo_weights.h5'):
-        K.clear_session()  # get a new session
+        # K.clear_session()  # get a new session
         image_input = Input(shape=(self.input_shape))
         q_input = Input(shape=[self.word_len, self.embed_dim], name='q_input')
         h, w,_ = self.input_shape

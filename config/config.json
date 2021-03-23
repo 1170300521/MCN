@@ -17,7 +17,7 @@
   "start_epoch":0,
   "word_len": 15,
   "embed_dim": 300,
-  "enc_layers": 2,
+  "enc_layers": 0,
   "bidirectional": 1,
   "crf":0,
   "use_nls": 1,

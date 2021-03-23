@@ -20,7 +20,7 @@ from tensorflow.python.framework.ops import disable_eager_execution
 np.random.seed(config['seed'])
 tf.random.set_seed(config['seed'])
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0" #(or "1" or "2")
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" #(or "1" or "2")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 MODELS_PATH = os.path.join(config['log_path'], 'models')
 if not os.path.exists(MODELS_PATH):
@@ -61,8 +61,8 @@ class Learner(object):
 
         #call_back_init
         call_backs = []
-#        logging = TensorBoard(log_dir=config['log_path'])
-#        call_backs.append(logging)
+        logging = TensorBoard(log_dir=config['log_path'])
+        call_backs.append(logging)
         eval_log = tf.summary.create_file_writer(config['log_path']) 
         ap_evaluate = Evaluate(self.val_data,self.anchors,config, tensorboard=eval_log)
         call_backs.append(RedirectModel(ap_evaluate,self.yolo_body))
@@ -73,13 +73,13 @@ class Learner(object):
                                          monitor="det_acc",
                                          mode='max')
         call_backs.append(checkpoint_map)
-        lr_schedue = LearningRateScheduler(lr_step_decay(config['lr'],config['steps']), eval_log,verbose=1,init_epoch=config['start_epoch'])
+        lr_schedue = LearningRateScheduler(lr_step_decay(config['lr'], config['steps']), verbose=1,init_epoch=config['start_epoch'])
         call_backs.append(lr_schedue)
         self.callbacks=call_backs
     
     def create_model(self, load_pretrained=True, freeze_body=1,
                      yolo_weights_path='/home/luogen/weights/coco/yolo_weights.h5'):
-        K.clear_session()  # get a new session
+        # K.clear_session()  # get a new session
         image_input = Input(shape=(self.input_shape))
         q_input = Input(shape=[self.word_len, self.embed_dim], name='q_input')
         h, w, _ = self.input_shape
@@ -98,7 +98,6 @@ class Learner(object):
             if freeze_body in [1, 2]:
                 # Freeze darknet53 body or freeze all but 3 output layers.
                 num = (self.n_freeze, len(model_body.layers) - 3)[freeze_body - 1]
-                # print(num)
                 for i in range(num): model_body.layers[i].trainable = False
                 # for i in range(num,len(model_body.layers)): print(model_body.layers[i].name)
                 print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
@@ -114,12 +113,14 @@ class Learner(object):
     def train(self):
 
         # Yolo Compile
+        # TODO: add det_acc metric
         self.yolo_model.compile(loss={'yolo_loss': lambda y_true, y_pred: y_pred}, optimizer=Adam(lr=config['lr']))
 #                                experimental_fun_tf_function=False)
         if config['workers']>0:
             use_multiprocessing=True
         else:
             use_multiprocessing=False
+        use_multiprocessing=False
         self.yolo_model.fit(self.train_generator,
                                       callbacks=self.callbacks,
                                       epochs=config['epoches'],

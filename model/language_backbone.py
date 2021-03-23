@@ -11,20 +11,20 @@ import tensorflow.keras.backend as K
 
 
 def gru_rnn_module_a(word_embs,rnn_dim,dropout,return_seq):
-    with tf.compat.v1.variable_scope('gru_module'):
-        if dropout>0.:
-            lstm_cell = Bidirectional(GRU(rnn_dim,return_sequences=return_seq,dropout=dropout),merge_mode="sum")(word_embs)
-        else:
-            lstm_cell=Bidirectional(GRU(rnn_dim,return_sequences=return_seq),merge_mode="sum")(word_embs)
-        return lstm_cell
+#    with tf.compat.v1.variable_scope('gru_module'):
+    if dropout>0.:
+        lstm_cell = Bidirectional(GRU(rnn_dim,return_sequences=return_seq,dropout=dropout),merge_mode="sum")(word_embs)
+    else:
+        lstm_cell=Bidirectional(GRU(rnn_dim,return_sequences=return_seq),merge_mode="sum")(word_embs)
+    return lstm_cell
 
 def gru_rnn_module_s(word_embs,rnn_dim,dropout,return_seq):
-    with tf.compat.v1.variable_scope('gru_module'):
-        if dropout>0.:
-            lstm_cell = GRU(rnn_dim,dropout=dropout,return_sequences=return_seq)(word_embs)
-        else:
-            lstm_cell=GRU(rnn_dim,return_sequences=return_seq)(word_embs)
-        return lstm_cell
+#    with tf.compat.v1.variable_scope('gru_module'):
+    if dropout>0.:
+        lstm_cell = GRU(rnn_dim,dropout=dropout,return_sequences=return_seq)(word_embs)
+    else:
+        lstm_cell=GRU(rnn_dim,return_sequences=return_seq)(word_embs)
+    return lstm_cell
 
 def build_nlp_model(q_input,rnn_dim,bidirection,dropout,lang_att):
     if not lang_att:
