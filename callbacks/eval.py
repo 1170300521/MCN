@@ -10,7 +10,6 @@ from matplotlib.pyplot import cm
 import spacy
 import  progressbar
 
-tf.compat.v1.disable_eager_execution()
 
 class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.

@@ -4,6 +4,7 @@ from tensorflow import keras
 from keras_bert.layers import Extract, MaskedGlobalMaxPool1D
 from keras_bert.loader import load_trained_model_from_checkpoint, load_vocabulary
 from keras_bert.tokenizer import Tokenizer
+from keras_bert import get_pretrained, PretrainedList
 from collections import namedtuple
 import tensorflow.keras.backend as K
 import os
@@ -44,6 +45,7 @@ def build_bert( model,
                              Only available when `model` is a path to checkpoint.
     :return: A list of numpy arrays representing the embeddings.
     """
+    model = get_pretrained(PretrainedList.multi_cased_base)
     if isinstance(model, (str, type(u''))):
         paths = get_checkpoint_paths(model)
         model = load_trained_model_from_checkpoint(

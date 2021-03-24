@@ -16,7 +16,7 @@ from utils.utils import lr_step_decay
 import json
 from tensorflow.python.framework.ops import disable_eager_execution
 
-#disable_eager_execution()
+disable_eager_execution()
 np.random.seed(config['seed'])
 tf.random.set_seed(config['seed'])
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -50,7 +50,7 @@ class Learner(object):
         # training batch size
         self.start_epoch=config['start_epoch']
 
-        self.n_freeze=59
+        self.n_freeze=51  # should be 51
         if config['backbone']=='vgg':
             self.n_freeze = 34 + 12
         self.yolo_model, self.yolo_body = self.create_model(yolo_weights_path=config['pretrained_weights'],freeze_body=config['free_body'])
@@ -91,6 +91,9 @@ class Learner(object):
         # seg_gt=Input(shape=(h//self.seg_out_stride,w//self.seg_out_stride,1))
 
         model_body = yolo_body(image_input, q_input, num_anchors,config)  ######    place
+#        print(len(model_body.layers))
+#        for i in range(len(model_body.layers)):
+#            print(i, model_body.layers[i].name, model_body.layers[i].get_config())
 
         if load_pretrained:
             # model_body.load_weights(yolo_weights_path, by_name=True, skip_mismatch=True)
@@ -98,10 +101,12 @@ class Learner(object):
             if freeze_body in [1, 2]:
                 # Freeze darknet53 body or freeze all but 3 output layers.
                 num = (self.n_freeze, len(model_body.layers) - 3)[freeze_body - 1]
-                for i in range(num): model_body.layers[i].trainable = False
+                for i in range(num): 
+                    model_body.layers[i].trainable = False
+                    print(model_body.layers[i].name)
                 # for i in range(num,len(model_body.layers)): print(model_body.layers[i].name)
                 print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
-#
+
         model_loss = Lambda(yolo_loss, output_shape=(1,), name='yolo_loss',
                             arguments={'anchors': self.anchors,  'ignore_thresh': 0.5,'att_loss_weight':config['att_loss_weight']})(
             [*model_body.output, *det_gt, *att_gt])

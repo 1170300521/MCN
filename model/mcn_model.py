@@ -14,6 +14,7 @@ from model.visual_backbone import *
 from model.garan import global_attentive_reason_unit
 from model.CBP import compact_bilinear_pool
 from model.transformer import TransformerEncoder, PositionEmbeddingSine
+from model.bert import build_bert
 
 #def bilinear_pool(x1, x2):
 #    """
@@ -198,26 +199,27 @@ def yolo_body(inputs,q_input, num_anchors,config):
     assert config['backbone'] in ["darknet","vgg"]
     if config['backbone'] == "darknet":
         darknet = Model(inputs, darknet_body(inputs))
-#        if os.path.exists(config['pretrained_weights']):
-#            tmp_model = load_model(config['pretrained_weights'])
-#            tmp_weights = tmp_model.get_weights()
-#            dark_weights = darknet.get_weights()
-#            min_len = len(dark_weights)
-#            for i in range(min_len):
-#                if tmp_weights[i].shape != dark_weights[i].shape:
-#                    tmp_weights[i] = dark_weights[i]
-#            darknet.set_weights(tmp_weights[0:min_len])
-
+        # print(len(darknet.layers))
+        if os.path.exists(config['pretrained_weights']):
+            tmp_model = load_model(config['pretrained_weights'])
+            tmp_weights = tmp_model.get_weights()
+            dark_weights = darknet.get_weights()
+            min_len = len(dark_weights)
+            for i in range(min_len):
+                if tmp_weights[i].shape != dark_weights[i].shape:
+                    #print(i, tmp_weights[i].shape, dark_weights[i].shape)
+                    tmp_weights[i] = dark_weights[i]
+            darknet.set_weights(tmp_weights[0:min_len])
 #        darknet.save("darknet.h5")
 #        for i in range(len(darknet.layers)):
-#            print(i, darknet.layers[i].output_shape)
+#            print(i, darknet.layers[i].get_config())
 #        print(darknet.output_shape, darknet.layers[47].output_shape, darknet.layers[29].output_shape)
         Fv = [darknet.output, darknet.layers[47].output, darknet.layers[29].output]
     else:
         Fv = vgg16(inputs)
 
     if config['use_bert']:
-        q_input,fq=build_bert(config['bert_path'],poolings=['POOL_NSP'],output_layer_num=4)
+        q_input,fq=build_bert(poolings=['POOL_NSP'],output_layer_num=4)
     else:
         fq=build_nlp_model(q_input,config['rnn_hidden_size'],config['bidirectional'],config['rnn_drop_out'],config['lang_att'])  #build nlp model for fusion
 

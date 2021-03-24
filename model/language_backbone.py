@@ -33,6 +33,7 @@ def build_nlp_model(q_input,rnn_dim,bidirection,dropout,lang_att):
         bi_rnn=gru_rnn_module_a(q_input,rnn_dim,dropout,lang_att)
     else:
         bi_rnn = gru_rnn_module_s(q_input, rnn_dim, dropout,lang_att)
+#    bi_rnn = q_input
     if lang_att:
         bi_rnn_weights = Dense(K.int_shape(bi_rnn)[-1], activation='tanh')(bi_rnn)
         bi_rnn_weights = Dropout(0.1)(bi_rnn_weights)

@@ -6,10 +6,12 @@ def expand_and_tile(x,outsize):
     x = K.expand_dims(x, axis=1)
     x = K.tile(x, [1, outsize, outsize, 1])
     return x
+
 def expand_and_tile_1(x,outchannels):
     x = K.expand_dims(x, axis=-1)
     x = K.tile(x, [1,1,outchannels])
     return x
+
 def normalize_by_dim(x,dim=1024.):
     d=tf.convert_to_tensor(dim)
     return x/K.sqrt(d)
