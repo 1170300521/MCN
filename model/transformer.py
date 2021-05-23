@@ -7,9 +7,9 @@ from tensorflow.keras import backend as K
 #from keras_multi_head import MultiHeadAttention
 
 
-class TransformerLayer(layers.Layer):
+class TransformerEncoderLayer(layers.Layer):
     def __init__(self, embed_dim, ff_dim=2048, num_heads=8, rate=0.1):
-        super(TransformerLayer, self).__init__()
+        super(TransformerEncoderLayer, self).__init__()
         self.att = layers.MultiHeadAttention(num_heads, embed_dim)
         self.ffn = tf.keras.Sequential(
             [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
@@ -33,10 +33,46 @@ class TransformerLayer(layers.Layer):
         return self.layernorm2(out1 + ffn_output)
 
 
+def class TransformerDecoderLayer(layers.layer):
+    """
+    Different from normal decoder layer as "Attention is all you need".
+    This module is designed to reason relations between objects
+    """
+    def __init__(self, embed_dim, ff_dim=2048, num_heads=4, rate=0.1):
+        super(TransformerDecoderLayer, self).__init__()
+        self.relation_att = layers.MultiHeadAttention(num_heads, embed_dim)
+        self.align_att = layers.MultiHeadAttention(num_heads, embed_dim)
+        self.ffn = tf.keras.Sequential(
+            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim)]
+        )
+        self.dropout1 = layers.Dropout(rate)
+        self.dropout2 = layers.Dropout(rate)
+        self.dropout3 = layers.Dropout(rate)
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm3 = layers.LayerNormalization(epsilon=1e-6)
+
+    def call(self, img_vec, lang_vec, training, img_pos_emb=None, lang_vec=None):
+        if img_pos_emb is not None:
+            img_vec = img_vec + img_pos_emb
+        if lang_pos_emb is not None:
+            lang_vec = lang_vec + lang_pos_emb
+        align_output = self.align_att(img_vec, lang_vec)
+        align_output = self.dropout1(align_output, training=training)
+        align_output = self.layernorm1(img_vec + attn_output)
+
+        relation_output = self.relation_att(align_output, lang_vec)
+        relation_output = self.dropout2(relation_output, training=training)
+        relation_output = self.layernorm2(align_output + relation_output)
+
+        output = self.ffn(relation_output)
+        output = self.dropout3(output, training=training)
+        return self.layernorm3(output + relation_output)
+
 class TransformerEncoder(layers.Layer):
     def __init__(self, num_layers, embed_dim, num_heads=8, norm=None):
         super(TransformerEncoder, self).__init__()
-        self.layers = [TransformerLayer(embed_dim, num_heads=num_heads) for i in range(num_layers)]
+        self.layers = [TransformerEncoderLayer(embed_dim, num_heads=num_heads) for i in range(num_layers)]
         self.num_layers = num_layers
         self.norm = layers.LayerNormalization(epsilon=1e-6) if norm is not None else None
 
@@ -44,6 +80,24 @@ class TransformerEncoder(layers.Layer):
         output = inputs
         for i in range(len(self.layers)):
             output = self.layers[i](output, training, pos_emb)
+        if self.norm is not None:
+            output = self.norm(output)
+        return output
+
+
+class ReasonDecoder(layers.layer):
+    """
+    Relation reasoning module for one-stage visual grounding
+    """
+    def __init__(self, num_layers, embed_dim, num_heads=4, norm=None):
+        super(ReasonDecoder).__init__()
+        self.layers = [TransformerDecoderLayer(embed_dim, num_heads=num_heads) for i in range(num_layers)]
+        self.num_layers = num_layers
+        self.norm = layers.LayerNormalization(epsilon=1e-6) if norm is not None else None
+    
+    def call(self, img_vec, lang_vec, training, img_pos_emb=None, lang_pos_emb=None):
+        for i in range(len(self.layers)):
+            img_vec = self.layers[i](img_vec, lang_vec, training, img_pos_emb, lang_pos_emb)
         if self.norm is not None:
             output = self.norm(output)
         return output
